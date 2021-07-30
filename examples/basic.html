@@ -1,0 +1,31 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="en-US">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>Pubber Demo</title>
+        <script type="application/javascript" language="javascript" src="pubber.js"></script>
+    </head>
+
+    <body>
+        <div
+            subscribe="open,close"
+            listener="subscription_event"
+            style="background: blue;"
+        >
+        Here I am
+        </div>
+    </body>
+
+    <script type="application/javascript">
+        function subscription_event(topic, payload) {
+            console.log(topic);
+
+            if (topic == "open") {
+            }
+            else if (topic == "close") {
+            }
+        }
+    </script>
+    <pubsub-router>
+    </pubsub-router>
+</html>

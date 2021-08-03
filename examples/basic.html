@@ -14,16 +14,23 @@
         >
         Here I am
         </div>
+        <div style="width: 100px; height: 40px; background: yellow" onclick="test_emitter()">
+            Press me !
+        </div>
     </body>
 
     <script type="application/javascript">
         function subscription_event(topic, payload) {
-            console.log(topic);
+            console.log("Element " + this.nodeName + " got message " + topic + " with payload " + Object.entries(payload).length);
 
             if (topic == "open") {
             }
             else if (topic == "close") {
             }
+        }
+
+        function test_emitter() {
+            pubsubMessageRouter.singleton.emit("open", {name: "whatever"});
         }
     </script>
     <pubsub-router>

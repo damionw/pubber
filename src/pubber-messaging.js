@@ -9,73 +9,29 @@ class pubsubMessageRouter extends HTMLElement {
     constructor() {
         super();
 
-        this._message_handler = null;
+        this._pubber_message_handler = null;
         this._observer = null;
         this.registrations = {};
         this.idcount = 0;
-//         window.addEventListener(
-//             'DOMContentLoaded',
-// 
-//             function(event) {
-//                 console.log("LOADED");
-//                 document.body.appendChild(document.createElement("LI"));
-//                 self.start();
-//             }
-//         );
-    }
-
-    register_consumers(root_element) {
-        var messenger = this;
-
-        try {
-            var selection = (root_element || document).querySelectorAll("*");
-        }
-        catch (TypeError) {
-            return;
-        }
-
-        var subscription_elements = Array.from(selection).filter(
-            function(element) {
-                return (
-                    element != null && element.getAttribute("subscribe") != null
-                );
-            }
-        );
-
-        console.log("REGISTER CONSUMERS " + subscription_elements.length);
-
-        subscription_elements.forEach(
-            function(element) {
-                console.log("Registering " + element.nodeType + " " + element.nodeName);
-
-//                 messenger.setElementHandler(element);
-//                 messenger.setElementTopics(element);
-// 
-//                 if (element.emit == null) {
-//                     element.emit = function(topic, payload) {
-//                         messenger.broadcast(topic, payload);
-//                     }
-//                 }
-            }
-        );
     }
 
     //=========================================================
     //                      Class Methods
     //=========================================================
     static get singleton() {
-        var elements = document.getElementsByTagName(this.tagname);
+        var class_elements = document.getElementsByTagName(this.tagname);
 
-        for (var i=0; i < elements.length; ++i) {
-            return elements[i];
+        for (var i=0; i < class_elements.length; ++i) {
+            return class_elements[i];
         }
 
-        var search_elements = document.getElementsByTagName("BODY");
+        var body_elements = document.getElementsByTagName("BODY");
 
-        for (var i=0; i < search_elements.length; ++i) {
-            var parent_node = search_elements[i];
-            parent_node.appendChild(element);
-            return element;
+        for (var i=0; i < body_elements.length; ++i) {
+            var parent_node = body_elements[i];
+            var new_router_element = document.createElement(this.tagname);
+            parent_node.appendChild(new_router_element);
+            return new_router_element;
         }
 
         throw new Error("No BODY element found in document");
@@ -106,42 +62,119 @@ class pubsubMessageRouter extends HTMLElement {
     //=========================================================
     //                    Subcriptions
     //=========================================================
-    register(element, topic) {
-        if (topic in {null: 0, "": 0, "null": 0}) {
+    register_consumers(root_element) {
+        try {
+            var selection = (root_element || document).querySelectorAll("*");
+        }
+        catch (TypeError) {
             return;
         }
 
-        if (element.id in {null: 0, "": 0}) {
-            element.id = "pubsub_registration_" + this.idcount++;
+        var elements = Array.from(selection);
+
+        for (var i=0; i < elements.length; ++i) {
+            var element = elements[i];
+
+            if (element == null) {
+                continue;
+            }
+
+            if (! element.getAttribute("subscribe")) {
+                continue;
+            }
+
+            if (this.has_element_id(element)) {
+                continue;
+            }
+
+            this.register_element(element);
         }
-
-        var topic = topic.toLowerCase();
-
-        if (this.registrations[topic] == null) {
-            this.registrations[topic] = {};
-        }
-
-        this.registrations[topic][element.id] = 1;
-
-//         console.log("REGISTER: topic=" + topic + " elements=" + Object.keys(this.registrations[topic]).join(",") + "]");
     }
 
-    deregister(element, topic) {
-        if (element.id in {null: 0, "": 0}) {
-            return;
+    register_element(element) {
+        var self = this;
+
+        // Register topics
+        this.get_element_topics(element).forEach(
+            function(topic) {
+                self.register_topic(element, topic);
+            }
+        );
+
+        // Register event handler
+        var code = element.getAttribute("listener");
+
+        if (code == "" || code == "null") {
+            element._pubber_message_handler = new Function("return;");
+        }
+        else if (window[code] != null) {
+            element._pubber_message_handler = window[code];
+        }
+        else if (code.search(";") == -1) {
+            element._pubber_message_handler = new Function("topic", "payload", code + ".call(this, topic, payload);");
+        }
+        else {
+            element._pubber_message_handler = new Function("topic", "payload", code);
         }
 
-        var topic = topic.toLowerCase();
+        // Provide element with an emit() function
+        if (element.emit == null) {
+            element.emit = function(topic, payload) {
+                self.broadcast(topic, payload);
+            }
+        }
+    }
 
-        if (this.registrations[topic] == null) {
-            return;
+    deregister_element(element) {
+    }
+
+    register_topic(element, topic){
+        var _element_id = this.get_element_id(element);
+        var _registrations = this.registrations;
+
+        if (_registrations[topic] == null) {
+            _registrations[topic] = {};
         }
 
-        if (! (topic in this.registrations)) {
-            return;
+//         console.log("Element " + element.nodeName + ", id=" + _element_id + " will receive " + topic + " messages");
+
+        _registrations[topic][_element_id] = element;
+    }
+
+    deregister_topic(element, topic) {
+    }
+
+    //=========================================================
+    //                 Identity and Topics
+    //=========================================================
+    has_element_id(element) {
+        return (! element._pubber_id in {null: 0, "": 0});
+    }
+
+    get_element_id(element) {
+        if (! this.has_element_id(element)) {
+            element._pubber_id = "pubsub_registration_" + this.idcount++;
         }
 
-        this.registrations[topic][element.id] == 0;
+        return element._pubber_id;
+    }
+
+    get_element_topics(element) {
+        return Array.from(
+            new Set(
+                (element.getAttribute("subscribe") || "").
+                split(",").
+                map(
+                    function(term) {
+                        return term.trim().toLowerCase();
+                    }
+                ).filter(
+                    function(term) {
+                        return (term.length > 0);
+                    }
+                )
+            )
+        );
     }
 
     //=========================================================
@@ -149,44 +182,32 @@ class pubsubMessageRouter extends HTMLElement {
     //=========================================================
     broadcast(topic, payload) {
         var topic = topic.toLowerCase();
+        var registrations = Object.entries(this.registrations[topic] || {});
 
-        var registered_elements = Object.entries(this.registrations[topic] || {}).filter(
-            function(pair) {
-                const [_id, _bool] = pair;
-                return _bool;
+        for (var i = 0; i < registrations.length; ++i) {
+            const [_id, _element] = registrations[i];
+
+            if (_element == null) {
+                continue;
             }
-        ).map(
-            function(pair) {
-                const [_id, _bool] = pair;
-                return document.getElementById(_id);
+
+            if (_element._pubber_message_handler == null) {
+                continue;
             }
-        ).filter(
-            function(_element) {
-                return _element != null;
-            }
-        ).forEach(
-            function(_element) {
-                _element.receive(topic, payload);
-            }
-        );
+           
+            _element._pubber_message_handler.call(_element, topic, payload);
+        }
     }
 
-    //=========================================================
-    //                  Message Handling
-    //=========================================================
+    // Convenience function mirrors what registered elements get
     emit(topic, payload) {
-        this.messenger.broadcast(topic, payload);
-    }
-
-    setTopics() {
-        this.messenger.setElementTopics(this);
+        this.broadcast(topic, payload);
     }
 
     //=========================================================
     //                    Event Handling
     //=========================================================
     connectedCallback() {
-        console.log("CONNECTED");
         this.style.display = "none";
 
         this.observer.observe(
@@ -204,13 +225,9 @@ class pubsubMessageRouter extends HTMLElement {
     }
 
     elementsChanged(added_elements) {
-        var self = this;
-
-        added_elements.forEach(
-            function(element) {
-                self.register_consumers(element);
-            }
-        );
+        for (var i = 0; i < added_elements.length; ++i) {
+            this.register_consumers(added_elements[i]);
+        }
     }
 }
 

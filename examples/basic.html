@@ -10,12 +10,15 @@
         <div
             subscribe="open,close"
             listener="subscription_event"
-            style="background: blue;"
+            style="background: blue; color: white; width: 100%; height: 120px;"
         >
         Here I am
         </div>
-        <div style="width: 100px; height: 40px; background: yellow" onclick="test_emitter()">
-            Press me !
+        <div style="width: 200px; height: 80px; background: #00ff00; foreground: white;" onclick="test_emitter('open');">
+            On
+        </div>
+        <div style="width: 200px; height: 80px; background: #ff0000; foreground: white;" onclick="test_emitter('close');">
+            Off
         </div>
     </body>
 
@@ -24,13 +27,17 @@
             console.log("Element " + this.nodeName + " got message " + topic + " with payload " + Object.entries(payload).length);
 
             if (topic == "open") {
+                this.style.backgroundColor = "green";
+                this.style.Color = "black";
             }
             else if (topic == "close") {
+                this.style.backgroundColor = "red";
+                this.style.Color = "white";
             }
         }
 
-        function test_emitter() {
-            pubsubMessageRouter.singleton.emit("open", {name: "whatever"});
+        function test_emitter(state) {
+            pubsubMessageRouter.singleton.emit(state, {name: "whatever"});
         }
     </script>
     <pubsub-router>

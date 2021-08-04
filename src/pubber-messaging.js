@@ -126,6 +126,16 @@ class pubsubMessageRouter extends HTMLElement {
     }
 
     deregister_element(element) {
+        var registrations = Object.entries(this.registrations || {});
+        var _element_id = this.get_element_id(element);
+
+        for (var i = 0; i < registrations.length; ++i) {
+            const [_topic, _topic_registrations] = registrations[i];
+
+            if (_element_id in _topic_registrations) {
+                this.deregister_topic(element, _topic);
+            }
+        }
     }
 
     register_topic(element, topic){
@@ -136,12 +146,19 @@ class pubsubMessageRouter extends HTMLElement {
             _registrations[topic] = {};
         }
 
-//         console.log("Element " + element.nodeName + ", id=" + _element_id + " will receive " + topic + " messages");
-
         _registrations[topic][_element_id] = element;
     }
 
     deregister_topic(element, topic) {
+        var _element_id = this.get_element_id(element);
+        var _registrations = this.registrations;
+
+        if (_registrations[topic] == null) {
+            return;
+        }
+
+        delete _registrations[topic][_element_id];
+        
     }
 
     //=========================================================

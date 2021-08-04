@@ -9,7 +9,6 @@ class pubsubMessageRouter extends HTMLElement {
     constructor() {
         super();
 
-        this._pubber_message_handler = null;
         this._observer = null;
         this.registrations = {};
         this.idcount = 0;
